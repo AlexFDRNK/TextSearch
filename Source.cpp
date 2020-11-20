@@ -9,8 +9,40 @@
 #include <vector>
 #include <functional>
 
+// 1. Это очень важно, ВСЕГДА РАЗДЕЛЯЙТЕ ЛОГИЧЕСКИЕ БЛОКИ ПУСТОЙ СТРОКОЙ.
+// Это относится к:
+// Разные функциональные объекты, например:
+// функция1 и функция2 нужно разделять строкой
+// или
+// константа и макрос, подключаемые библиотеки , функция, класс, структура или любая пара из.
+// или
+// логические блоки внутри функции. Это крайне важно, это делает ваш код более лаконичным.
+// К примеру для начала вы можете разделять свою функцию на три базовых части
+//      1. Подготовка или инициализация
+//      2. Действие
+//      3. Результат
+//  Пример:
+//          bool myFoo(int g, string e){
+//                  if(e.empty) return;
+//                  if(g < 1) return;
+//                  const auto index = GetGlobalIndex();
+//
+//                  auto result = e.size() > g ? g : 0;
+//                  result = (result > 0) ? g + index : 0;
+//
+//                  return result > 0;
+//          }
+//
+// 2. Посмотрите все замечания которые я вам оставил и ознакомьтесь с материалами. Помните, что это нужно в первую очередь вам и не ленитесь
+//
+// Результат зачет, но можно лучше.
+
 using namespace std;
 
+//1. Используйте constexpr там где это возможно
+//"Эффективный и современный C++" Скотт Майерс
+//2. Используйте путсую линию чтобы отделять логические блоки.
+//Нужно приложить усилия чтобы понять где функция а где константа
 const int MAX_RESULT_DOCUMENT_COUNT = 5;
 string ReadLine() {
     string s;
@@ -26,9 +58,12 @@ int ReadLineWithNumber() {
 vector<string> SplitIntoWords(const string& text) {
     vector<string> words;
     string word;
+    //Используйте константную ссылку вместо копирования элементов коллекции в цикле
     for (const char c : text) {
         if (c == ' ') {
             words.push_back(word);
+            //Используйте функцию clear() для очистки строки
+			//https://stackoverflow.com/questions/35388912/why-is-there-clear-method-when-can-be-assigned-to-stdstring
             word = "";
         }
         else {
@@ -56,6 +91,7 @@ public:
             stop_words_.insert(word);
         }
     }
+    //Обязательно делайте зазоры между функциями в одну пустую строку. Иначе код нечитаем.
     void AddDocument(int document_id, const string& document, DocumentStatus status, const vector<int>& ratings) {
         const vector<string> words = SplitIntoWordsWithoutStop(document);
         if (words.empty()){ return; }
@@ -65,6 +101,7 @@ public:
         }
         documents_.emplace(document_id, DocumentData{ ComputeAverageRating(ratings), status });
     }
+    //Обязательно делайте зазоры между функциями в одну пустую строку. Иначе код нечитаем.
     vector<Document> FindTopDocuments(const string& raw_query, DocumentStatus status = DocumentStatus::ACTUAL) const {
         auto fun_pred = [status](int document_id, DocumentStatus doc_status, int rating) { return doc_status == status; };
         return FindTopDocuments(raw_query, fun_pred);
@@ -75,6 +112,9 @@ public:
         auto matched_documents = FindAllDocuments(query, fun_pred);
         sort(matched_documents.begin(), matched_documents.end(),
             [](const Document& lhs, const Document& rhs) {
+				// 1. Используйте модификатор const всегда когда это возможно
+                // 2. В данном случае, можно не использовать переменную на стеки а сразу ее вернуть
+                //    return (a > b) ? a : b;
                 bool res = abs(lhs.relevance - rhs.relevance) < 1e-6 ? lhs.rating > rhs.rating :  lhs.relevance > rhs.relevance;
                 return res;
             });
@@ -92,6 +132,9 @@ public:
         const Query query = ParseQuery(raw_query);
         vector<string> matched_words;
         for (const string& word : query.plus_words) {
+            //У вас в двух циклах одно и тоже условие.
+            //Можно сделать одну функцию принимающую word и возвращающую bool 
+            //или использовать предикат в виде лямбды, который будет создаваться в начале функции
             if (word_to_document_freqs_.count(word) != 0 && word_to_document_freqs_.at(word).count(document_id)) {
                 matched_words.push_back(word);
             }
@@ -135,6 +178,9 @@ private:
     }
 
     bool IsStopWord(const string& word) const {
+        // Вы используете лишнюю операцию сравнения
+		// http://www.cplusplus.com/reference/set/set/count/
+		// http://eelis.net/c++draft/conv.prom#6
         return stop_words_.count(word) > 0;
     }
 
@@ -155,6 +201,7 @@ private:
         Query query;
         for (const string& word : SplitIntoWords(text)) {
             const QueryWord query_word = ParseQueryWord(word);
+            //Можно инвертировать цикл и убрать двойную вложеность
             if (!query_word.is_stop) {
                 if (query_word.is_minus) {
                     query.minus_words.insert(query_word.data);
@@ -178,6 +225,8 @@ private:
                 continue;
             }
             const double inverse_document_freq = ComputeWordInverseDocumentFreq(word);
+            //Название переменной очень странное. В данном случае вы можете использовать однобуквенное название
+            // например w, так как область видимости переменной ограничивается небольшим циклом
             for (const auto& wtdf : word_to_document_freqs_.at(word)) {
                 if (fun_pred(wtdf.first, documents_.at(wtdf.first).status, documents_.at(wtdf.first).rating)) {
                     document_to_relevance[wtdf.first] += wtdf.second * inverse_document_freq;
@@ -188,12 +237,23 @@ private:
             if (word_to_document_freqs_.count(word) == 0) {
                 continue;
             }
+            //Название переменной очень странное. В данном случае вы можете использовать однобуквенное название
+			// например w, так как область видимости переменной ограничивается небольшим циклом
             for (const auto& wtdf : word_to_document_freqs_.at(word)) {
                 document_to_relevance.erase(wtdf.first);
             }
         }
         vector<Document> matched_documents;
         for (const auto& dtr : document_to_relevance) {
+            //Код плохо читается, лучше сделать так как я приведу ниже и всегда придерживаться подобного стиля
+            //            matched_documents.push_back({
+            //                                          dtr.first,
+            //                                          dtr.second,
+            //                                          documents_.at(dtr.first).rating
+			//	                                      }
+        	//              );
+            // Так более понятно где аргументы и где конец выражения. Обратите внимание, что закрывающая скобка  стоит на отдельной строке
+            //на уровне начала выражения. Это стандартная практика. Я вам советую придерживаться такого стиля.
             matched_documents.push_back({
                 dtr.first,
                 dtr.second,
@@ -208,6 +268,8 @@ private:
         for (const int& rating : ratings) {
             rating_sum += rating;
         }
+        //Используйте метод empty, если нужно проверить пустой ли контейнер или нет
+        //https://www.cplusplus.com/reference/vector/vector/empty/
         return ratings.size() == 0 ? 0 : rating_sum / static_cast<int>(ratings.size());
     }
 };
